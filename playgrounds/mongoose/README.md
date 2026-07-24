@@ -53,8 +53,10 @@ Mongoose DocumentDB compatibility test
   ✅ insertMany
   ✅ findById (known issue resolved)
   ...
+  ✅ $vectorSearch returns nearest neighbor
+  ...
 ======================================
-Passed: 13  Failed: 0  Known issues: 0
+Passed: 16  Failed: 0  Known issues: 0
 ```
 
 ### Option B — run the demo REST API
@@ -204,7 +206,7 @@ MONGO_URI="mongodb://docdbadmin:Documentdb!Local1@localhost:10260/?tls=true&tlsA
 | Unique indexes              | ✅ Supported           | Duplicate keys raise the standard `E11000` error.                     |
 | Aggregation pipelines       | ✅ Common stages       | `$match`, `$group`, `$unwind`, `$sort`, etc. Atlas-only stages differ.|
 | `findById` / `_id` lookups  | ✅ Supported           | Works on the current `documentdb-local:latest` image.                 |
-| `$vectorSearch`             | ❌ Not supported       | Atlas-only operator; not implemented by DocumentDB.                   |
+| `$vectorSearch` / vector search | ✅ Supported       | Create a `cosmosSearch` vector index (e.g. `vector-ivf`), then query with the `$vectorSearch` stage or `$search` + `cosmosSearch`. |
 | Index `collation`           | ❌ Not supported       | `createIndex.collation is not implemented yet`; omit it.             |
 
 The CRUD test suite ([`app/mongoose-crud-test.js`](app/mongoose-crud-test.js))

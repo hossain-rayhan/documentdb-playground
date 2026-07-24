@@ -204,6 +204,54 @@ async function run() {
     if (res.deletedCount !== 1) throw new Error(`expected 1 deleted, got ${res.deletedCount}`);
   });
 
+  // Vector search: DocumentDB supports a `cosmosSearch` vector index and the
+  // `$vectorSearch` aggregation stage. Exercised via the native driver since
+  // Mongoose schemas do not model vector indexes directly.
+  const vecColl = `vectors_${Date.now()}`;
+  const vectors = mongoose.connection.db.collection(vecColl);
+
+  await step('vector index + insert (cosmosSearch vector-ivf)', async () => {
+    await vectors.insertMany([
+      { name: 'a', v: [1, 0, 0] },
+      { name: 'b', v: [0.9, 0.1, 0] },
+      { name: 'c', v: [0, 0, 1] },
+    ]);
+    const res = await mongoose.connection.db.command({
+      createIndexes: vecColl,
+      indexes: [
+        {
+          name: 'v_ivf',
+          key: { v: 'cosmosSearch' },
+          cosmosSearchOptions: { kind: 'vector-ivf', numLists: 1, similarity: 'COS', dimensions: 3 },
+        },
+      ],
+    });
+    if (res.ok !== 1) throw new Error('createIndexes did not return ok:1');
+  });
+
+  await step('$vectorSearch returns nearest neighbor', async () => {
+    const hits = await vectors
+      .aggregate([
+        {
+          $vectorSearch: {
+            index: 'v_ivf',
+            path: 'v',
+            queryVector: [1, 0, 0],
+            numCandidates: 10,
+            limit: 2,
+          },
+        },
+        { $project: { name: 1, _id: 0 } },
+      ])
+      .toArray();
+    if (hits.length === 0) throw new Error('vector search returned no results');
+    if (hits[0].name !== 'a') throw new Error(`expected nearest 'a', got '${hits[0].name}'`);
+  });
+
+  await step('vector cleanup (drop collection)', async () => {
+    await vectors.drop();
+  });
+
   await step('cleanup (drop collection)', async () => {
     await Widget.collection.drop();
   });
