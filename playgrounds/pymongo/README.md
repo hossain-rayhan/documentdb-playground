@@ -1,13 +1,14 @@
-# Beanie with DocumentDB (local)
+# PyMongo with DocumentDB (local)
 
-This playground shows how to use [Beanie](https://beanie-odm.dev/), a popular
-**asynchronous Python ODM** built on [Motor](https://motor.readthedocs.io/)
-(async PyMongo) and [Pydantic](https://docs.pydantic.dev/), against DocumentDB —
-running **entirely on your machine**. It includes:
+This playground shows how to use [PyMongo](https://pymongo.readthedocs.io/), the
+official **synchronous Python driver** for MongoDB, against DocumentDB — running
+**entirely on your machine**. Unlike the Mongoose and Beanie playgrounds (which
+use ODMs), this one talks to DocumentDB at the **raw driver level**: no schema
+classes, just collections and BSON documents. It includes:
 
-- a small **FastAPI + Beanie REST API** (`app/`), and
-- a standalone **Beanie CRUD/compatibility test suite**
-  (`app/beanie_crud_test.py`) that exercises connect, index creation, insert,
+- a small **Flask + PyMongo REST API** (`app/`), and
+- a standalone **PyMongo CRUD/compatibility test suite**
+  (`app/pymongo_crud_test.py`) that exercises connect, index creation, insert,
   query, update, aggregation, unique-index enforcement, and delete.
 
 There is **no Kubernetes and no cloud**. DocumentDB runs as the
@@ -15,12 +16,12 @@ There is **no Kubernetes and no cloud**. DocumentDB runs as the
 single Docker container, and the app/test run as local Python processes that
 connect straight to it.
 
-> **What is Beanie?** Beanie is a **Python library** (an async ODM, Object
-> Document Mapper), not a CLI tool or a server. Your application imports it to
-> define `Document` models (Pydantic classes) and talk to a MongoDB-compatible
-> database over Motor. Here it is used by the demo **app**
+> **What is PyMongo?** PyMongo is the **official MongoDB driver for Python** — a
+> library your application imports to talk to a MongoDB-compatible database. It
+> is *not* an ODM: you work directly with databases, collections, and dict-like
+> BSON documents. Here it is used by the demo **app**
 > ([`app/main.py`](app/main.py)) and the standalone **test script**
-> ([`app/beanie_crud_test.py`](app/beanie_crud_test.py)).
+> ([`app/pymongo_crud_test.py`](app/pymongo_crud_test.py)).
 
 ## Architecture
 
@@ -31,18 +32,18 @@ Everything is local. The emulator container exposes the MongoDB wire protocol on
    Your machine (WSL / Linux / macOS)
 ┌──────────────────────────────────────────────────────────────────┐
 │  ┌────────────────────┐         ┌──────────────────────────────┐  │
-│  │  beanie app /      │  TLS,   │  documentdb-local (Docker)   │  │
+│  │  pymongo app /     │  TLS,   │  documentdb-local (Docker)   │  │
 │  │  test script       │  wire   │  ┌────────────┐ ┌─────────┐  │  │
-│  │  (Python + Beanie) │────────▶│  │  Gateway   │▶│Postgres │  │  │
+│  │  (Python + PyMongo)│────────▶│  │  Gateway   │▶│Postgres │  │  │
 │  │                    │ :10260  │  │ (10260)    │ │ (engine)│  │  │
 │  └────────────────────┘         │  └────────────┘ └─────────┘  │  │
 │                                 └──────────────────────────────┘  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-Beanie talks to the emulator through Motor exactly as it would to a standalone
-`mongod`, with a few required options (see [Connecting Beanie to
-DocumentDB](#connecting-beanie-to-documentdb)).
+PyMongo talks to the emulator exactly as it would to a standalone `mongod`, with
+a few required options (see [Connecting PyMongo to
+DocumentDB](#connecting-pymongo-to-documentdb)).
 
 ## Prerequisites
 
@@ -54,7 +55,7 @@ Windows, run these from a **WSL** shell.
 
 ## Quick Start
 
-From this directory (`playgrounds/beanie/`). `run-test.sh` and `run-app.sh`
+From this directory (`playgrounds/pymongo/`). `run-test.sh` and `run-app.sh`
 are **two independent operations** — each starts DocumentDB on its own if it
 isn't already running.
 
@@ -84,8 +85,7 @@ The suite should end with `Passed: 16  Failed: 0`.
 
 ## Trying the API
 
-With `./scripts/run-app.sh` running, the API is on `http://localhost:3000`
-(interactive docs at `http://localhost:3000/docs`):
+With `./scripts/run-app.sh` running, the API is on `http://localhost:3000`:
 
 ```bash
 # Health
@@ -104,23 +104,22 @@ curl -s http://localhost:3000/books | jq .
 curl -s http://localhost:3000/stats/genres | jq .
 ```
 
-## Connecting Beanie to DocumentDB
+## Connecting PyMongo to DocumentDB
 
 The DocumentDB gateway speaks the MongoDB wire protocol but advertises itself as
-a **standalone** server over **TLS** (with a self-signed cert). Beanie talks to
-it through Motor, which therefore needs these options (see [`app/db.py`](app/db.py)):
+a **standalone** server over **TLS** (with a self-signed cert). PyMongo
+therefore needs these options (see [`app/db.py`](app/db.py)):
 
 ```python
-from motor.motor_asyncio import AsyncIOMotorClient
-from beanie import init_beanie
+from pymongo import MongoClient
 
-client = AsyncIOMotorClient(
+client = MongoClient(
     uri,
     directConnection=True,             # gateway is standalone, not a replica set
     tls=True,                          # gateway only accepts TLS
     tlsAllowInvalidCertificates=True,  # emulator uses a self-signed cert
 )
-await init_beanie(database=client[db_name], document_models=[Book])
+db = client["pymongo_demo"]
 ```
 
 The connection string built by the scripts is:
@@ -128,6 +127,10 @@ The connection string built by the scripts is:
 ```
 mongodb://<user>:<pass>@localhost:10260/?tls=true&tlsAllowInvalidCertificates=true&directConnection=true
 ```
+
+If your connection string contains `replicaSet=rs0`, strip it — a direct
+connection to the standalone gateway conflicts with it. Both
+[`app/db.py`](app/db.py) and the test script strip it automatically.
 
 For production against a real (non-emulator) deployment, set `TLS_INSECURE=false`
 and pass a CA bundle via `tlsCAFile` instead of `tlsAllowInvalidCertificates`.
@@ -148,38 +151,37 @@ Read by [`lib.sh`](scripts/lib.sh) and the `start`/`stop`/`run` scripts.
 | `DOCUMENTDB_PORT`      | `10260`                                                  | Host port mapped to the gateway.                         |
 | `DOCUMENTDB_USERNAME`  | `docdbadmin`                                             | Emulator admin username. **Do not use `documentdb`** (reserved — the gateway rejects it as "Username is invalid"). |
 | `DOCUMENTDB_PASSWORD`  | `Documentdb!Local1`                                      | Emulator admin password. If you use special characters, URL-encode them in the connection string. |
-| `PORT`                 | `3000`                                                   | Local port the FastAPI app listens on (`run-app.sh`).    |
+| `PORT`                 | `3000`                                                   | Local port the Flask app listens on (`run-app.sh`).      |
 
 ### App + test script (`app/`)
 
 Read by [`app/db.py`](app/db.py), [`app/main.py`](app/main.py), and
-[`app/beanie_crud_test.py`](app/beanie_crud_test.py). The scripts set `MONGO_URI`
-for you from the variables above.
+[`app/pymongo_crud_test.py`](app/pymongo_crud_test.py). The scripts set
+`MONGO_URI` for you from the variables above.
 
 | Variable                      | Default          | Description                                                                                  |
 | ----------------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
-| `MONGO_URI`                   | _(set by scripts)_ | DocumentDB connection string. The test script also accepts it as the first CLI argument.  |
-| `MONGO_DB`                    | `beanie_demo` (app), `beanie_test` (test) | Database name Beanie connects to.                                    |
+| `MONGO_URI`                   | _(set by scripts)_ | DocumentDB connection string. `replicaSet=rs0` is stripped automatically. The test script also accepts it as the first CLI argument. |
+| `MONGO_DB`                    | `pymongo_demo` (app), `pymongo_test` (test) | Database name PyMongo connects to.                            |
 | `TLS_INSECURE`                | `true`           | When `true`, accepts the self-signed cert. Set `false` for CA-verified TLS.                  |
-| `SERVER_SELECTION_TIMEOUT_MS` | `10000`          | How long Motor waits to select a server before erroring.                                     |
-| `PORT`                        | `3000`           | Port the FastAPI/Uvicorn API listens on.                                                     |
+| `SERVER_SELECTION_TIMEOUT_MS` | `10000`          | How long PyMongo waits to select a server before erroring.                                   |
+| `PORT`                        | `3000`           | Port the Flask API listens on.                                                               |
 
 ## DocumentDB Compatibility Notes
 
-Verified against `documentdb-local:latest` (release `0.114`):
+| PyMongo feature                          | Status        | Notes                                                                 |
+| ---------------------------------------- | ------------- | --------------------------------------------------------------------- |
+| CRUD (`insert_*`/`find*`/`update_*`/`delete_*`) | ✅ Supported | Standard document operations work as expected.                  |
+| `find_one` / `_id` point lookups         | ✅ Supported  | Works on the current `documentdb-local:latest` image.                 |
+| `create_indexes`                         | ✅ Supported  | Built asynchronously by the engine. Avoid `collation`.                |
+| Unique indexes                           | ✅ Supported  | Duplicate keys raise `DuplicateKeyError` (code `11000`).              |
+| `find_one_and_update` (returns new)      | ✅ Supported  | `ReturnDocument.AFTER` returns the updated document.                  |
+| Aggregation pipelines                    | ✅ Common stages | `$match`, `$group`, `$unwind`, `$sort`, etc. Atlas-only stages differ. |
+| `$vectorSearch` / vector search          | ✅ Supported  | DocumentDB supports a `cosmosSearch` vector index (e.g. `vector-ivf`) queried via the `$vectorSearch` stage. The test suite creates one and runs a nearest-neighbor query. |
+| Index `collation`                        | ❌ Not supported | `createIndex.collation is not implemented yet`; omit it.           |
+| Change streams / transactions            | ⚠️ Check version | Verify against your DocumentDB version before relying on them.     |
 
-| Beanie feature                          | Status        | Notes                                                                 |
-| --------------------------------------- | ------------- | --------------------------------------------------------------------- |
-| CRUD (`insert`/`find`/`save`/`delete`)  | ✅ Supported  | Standard document operations work as expected.                        |
-| `get(id)` / `_id` point lookups         | ✅ Supported  | Works on `0.114`. (Older gateway `0.109.0` failed these with "trying to open a pruned relation".) |
-| Index creation via `Settings.indexes`   | ✅ Supported  | Built asynchronously by the engine; `createIndexes` returns in ~2s. Avoid `collation`. |
-| Unique indexes                          | ✅ Supported  | Duplicate keys raise `DuplicateKeyError` (code `11000`).              |
-| Aggregation pipelines                   | ✅ Common stages | `$match`, `$group`, `$unwind`, `$sort`, etc. Atlas-only stages differ. |
-| `$vectorSearch` / vector search         | ✅ Supported  | DocumentDB supports a `cosmosSearch` vector index (e.g. `vector-ivf`) queried via the `$vectorSearch` stage. The test suite creates one and runs a nearest-neighbor query. |
-| Index `collation`                       | ❌ Not supported | `createIndex.collation is not implemented yet`; omit it.           |
-| Change streams / transactions           | ⚠️ Check version | Verify against your DocumentDB version before relying on them.     |
-
-The CRUD test suite ([`app/beanie_crud_test.py`](app/beanie_crud_test.py))
+The CRUD test suite ([`app/pymongo_crud_test.py`](app/pymongo_crud_test.py))
 covers the supported rows above and prints a pass/fail summary.
 
 ## Running the Test Suite Manually
@@ -192,19 +194,19 @@ cd app
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 MONGO_URI="mongodb://docdbadmin:Documentdb!Local1@localhost:10260/?tls=true&tlsAllowInvalidCertificates=true&directConnection=true" \
-  .venv/bin/python beanie_crud_test.py
+  .venv/bin/python pymongo_crud_test.py
 ```
 
 Expected output:
 
 ```
-Beanie DocumentDB compatibility test
-====================================
+PyMongo DocumentDB compatibility test
+=====================================
   ✅ connect
   ✅ create indexes
-  ✅ insert_one (Document.insert)
+  ✅ insert_one
   ✅ insert_many
-  ✅ get by _id (Document.get)
+  ✅ find_one by _id
   ✅ find with filter + sort + limit
   ✅ count_documents
   ✅ update_one ($set)
@@ -216,18 +218,18 @@ Beanie DocumentDB compatibility test
   ✅ $vectorSearch returns nearest neighbor
   ✅ vector cleanup (drop collection)
   ✅ cleanup (drop collection)
-====================================
+=====================================
 Passed: 16  Failed: 0
 ```
 
 ## What the Scripts Do
 
-| Script                        | Purpose                                                                                  |
-| ----------------------------- | ---------------------------------------------------------------------------------------- |
+| Script                        | Purpose                                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------------------ |
 | `scripts/start-documentdb.sh` | Start the local emulator container and wait until the gateway is ready.                    |
-| `scripts/run-test.sh`         | Start DocumentDB (if needed), set up the venv, and run the Beanie CRUD/compatibility suite. |
-| `scripts/run-app.sh`          | Start DocumentDB (if needed), set up the venv, and run the FastAPI + Beanie demo app.     |
-| `scripts/stop-documentdb.sh`  | Stop and remove the emulator container (full reset of its data).                          |
+| `scripts/run-test.sh`         | Start DocumentDB (if needed), set up the venv, and run the PyMongo CRUD/compatibility suite. |
+| `scripts/run-app.sh`          | Start DocumentDB (if needed), set up the venv, and run the Flask + PyMongo demo app.       |
+| `scripts/stop-documentdb.sh`  | Stop and remove the emulator container (full reset of its data).                           |
 | `scripts/lib.sh`              | Shared helpers: container lifecycle, readiness wait, connection-string builder, and venv setup. |
 
 ## Verification
@@ -281,23 +283,23 @@ the container (`stop-documentdb.sh` then `start-documentdb.sh`).
 
 ### `createIndex.collation is not implemented yet`
 
-A model index uses `collation`. Remove it; DocumentDB does not support collation
-indexes. The models in this playground intentionally avoid it.
+An index uses `collation`. Remove it; DocumentDB does not support collation
+indexes. The indexes in this playground intentionally avoid it.
 
 ## Directory Layout
 
 ```
-beanie/
+pymongo/
 ├── README.md
 ├── app/
 │   ├── requirements.txt
-│   ├── db.py                    # Motor connection + init_beanie (DocumentDB options)
-│   ├── main.py                  # FastAPI REST API (/books, /health, /stats)
+│   ├── db.py                    # MongoClient connection (DocumentDB options)
+│   ├── main.py                  # Flask REST API (/books, /health, /stats)
 │   ├── models/
-│   │   └── book.py              # Example Beanie Document model
-│   └── beanie_crud_test.py      # Standalone CRUD/compatibility test suite
+│   │   └── book.py              # Collection name, indexes, doc builder/serializer
+│   └── pymongo_crud_test.py     # Standalone CRUD/compatibility test suite
 └── scripts/
-    ├── lib.sh                   # Connection-string builder + readiness wait + venv setup
+    ├── lib.sh                   # Container lifecycle + connection-string builder + venv setup
     ├── start-documentdb.sh      # Start the local emulator (Docker)
     ├── run-app.sh               # Run the demo app locally
     ├── run-test.sh              # Run the test suite locally
