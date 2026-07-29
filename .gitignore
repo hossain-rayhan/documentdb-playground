@@ -5,6 +5,11 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
+# Python
+.venv/
+__pycache__/
+*.pyc
+
 # Runtime / logs
 *.log
 logs/
