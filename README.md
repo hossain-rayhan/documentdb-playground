@@ -13,14 +13,14 @@ playground's README states what it needs.
 
 ## Playgrounds
 
-| Playground                        | Language / Stack       | What it shows                                                              |
-| --------------------------------- | ---------------------- | ------------------------------------------------------------------------- |
-| [mongoose](playgrounds/mongoose/) | Node.js — Mongoose ODM | Express REST API + a CRUD/compatibility test suite using the Mongoose ODM. |
-| [beanie](playgrounds/beanie/)     | Python — Beanie ODM    | FastAPI REST API + a CRUD/compatibility test suite using the Beanie ODM.  |
-| [pymongo](playgrounds/pymongo/)   | Python — PyMongo driver | Flask REST API + a CRUD/compatibility test suite using the raw PyMongo driver. |
+| Playground                              | Language / Stack         | What it shows                                                                    |
+| --------------------------------------- | ------------------------ | -------------------------------------------------------------------------------- |
+| [mongoose](playgrounds/mongoose/)       | Node.js — Mongoose ODM   | Express REST API + a CRUD/compatibility test suite using the Mongoose ODM.       |
+| [mongodb-node](playgrounds/mongodb-node/) | Node.js — MongoDB driver | Express REST API + a CRUD/compatibility suite using the native Node.js driver.   |
+| [beanie](playgrounds/beanie/)           | Python — Beanie ODM      | FastAPI REST API + a CRUD/compatibility test suite using the Beanie ODM.         |
+| [pymongo](playgrounds/pymongo/)         | Python — PyMongo driver  | Flask REST API + a CRUD/compatibility test suite using the raw PyMongo driver.   |
 
-More playgrounds are planned (for example the **MongoDB Node.js native driver**
-and other MongoDB drivers). Contributions are welcome.
+More MongoDB driver playgrounds are planned. Contributions are welcome.
 
 ## Getting Started
 
@@ -34,6 +34,14 @@ For example, to try the Mongoose playground:
 
 ```bash
 cd playgrounds/mongoose
+./scripts/run-test.sh   # start DocumentDB locally and run the compatibility suite
+./scripts/run-app.sh    # or run the demo REST API
+```
+
+To try the MongoDB Node.js native driver playground:
+
+```bash
+cd playgrounds/mongodb-node
 ./scripts/run-test.sh   # start DocumentDB locally and run the compatibility suite
 ./scripts/run-app.sh    # or run the demo REST API
 ```
@@ -62,6 +70,7 @@ documentdb-playground/
 ├── LICENSE
 └── playgrounds/
     ├── mongoose/     # Node.js + Mongoose ODM
+    ├── mongodb-node/ # Node.js + MongoDB native driver
     ├── beanie/       # Python + Beanie ODM
     └── pymongo/      # Python + PyMongo driver
 ```
