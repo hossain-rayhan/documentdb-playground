@@ -217,6 +217,70 @@ async def run() -> int:
 
     await step("delete_one", _delete_one)
 
+    # Vector search: DocumentDB supports a `cosmosSearch` vector index and the
+    # `$vectorSearch` aggregation stage. The index is created with the raw
+    # `createIndexes` command since Beanie does not model vector indexes.
+    db_ref = client[DB_NAME]
+    vec_name = f"vectors_{int(time.time() * 1000)}"
+    vectors = db_ref[vec_name]
+
+    async def _vector_index_insert() -> None:
+        await vectors.insert_many(
+            [
+                {"name": "a", "v": [1, 0, 0]},
+                {"name": "b", "v": [0.9, 0.1, 0]},
+                {"name": "c", "v": [0, 0, 1]},
+            ]
+        )
+        res = await db_ref.command(
+            {
+                "createIndexes": vec_name,
+                "indexes": [
+                    {
+                        "name": "v_ivf",
+                        "key": {"v": "cosmosSearch"},
+                        "cosmosSearchOptions": {
+                            "kind": "vector-ivf",
+                            "numLists": 1,
+                            "similarity": "COS",
+                            "dimensions": 3,
+                        },
+                    }
+                ],
+            }
+        )
+        if res.get("ok") != 1:
+            raise RuntimeError("createIndexes did not return ok:1")
+
+    await step("vector index + insert (cosmosSearch vector-ivf)", _vector_index_insert)
+
+    async def _vector_search() -> None:
+        hits = await vectors.aggregate(
+            [
+                {
+                    "$vectorSearch": {
+                        "index": "v_ivf",
+                        "path": "v",
+                        "queryVector": [1, 0, 0],
+                        "numCandidates": 10,
+                        "limit": 2,
+                    }
+                },
+                {"$project": {"name": 1, "_id": 0}},
+            ]
+        ).to_list(length=10)
+        if not hits:
+            raise RuntimeError("vector search returned no results")
+        if hits[0].get("name") != "a":
+            raise RuntimeError(f"expected nearest 'a', got {hits[0].get('name')!r}")
+
+    await step("$vectorSearch returns nearest neighbor", _vector_search)
+
+    async def _vector_cleanup() -> None:
+        await vectors.drop()
+
+    await step("vector cleanup (drop collection)", _vector_cleanup)
+
     async def _drop() -> None:
         await coll.drop()
 

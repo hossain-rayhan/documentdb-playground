@@ -17,9 +17,10 @@ playground's README states what it needs.
 | --------------------------------- | ---------------------- | ------------------------------------------------------------------------- |
 | [mongoose](playgrounds/mongoose/) | Node.js — Mongoose ODM | Express REST API + a CRUD/compatibility test suite using the Mongoose ODM. |
 | [beanie](playgrounds/beanie/)     | Python — Beanie ODM    | FastAPI REST API + a CRUD/compatibility test suite using the Beanie ODM.  |
+| [pymongo](playgrounds/pymongo/)   | Python — PyMongo driver | Flask REST API + a CRUD/compatibility test suite using the raw PyMongo driver. |
 
-More playgrounds are planned (for example **PyMongo** and other MongoDB
-drivers). Contributions are welcome.
+More playgrounds are planned (for example the **MongoDB Node.js native driver**
+and other MongoDB drivers). Contributions are welcome.
 
 ## Getting Started
 
@@ -45,6 +46,14 @@ cd playgrounds/beanie
 ./scripts/run-app.sh    # or run the demo REST API
 ```
 
+To try the PyMongo playground:
+
+```bash
+cd playgrounds/pymongo
+./scripts/run-test.sh   # start DocumentDB locally and run the compatibility suite
+./scripts/run-app.sh    # or run the demo REST API
+```
+
 ## Repository Layout
 
 ```
@@ -53,7 +62,8 @@ documentdb-playground/
 ├── LICENSE
 └── playgrounds/
     ├── mongoose/     # Node.js + Mongoose ODM
-    └── beanie/       # Python + Beanie ODM
+    ├── beanie/       # Python + Beanie ODM
+    └── pymongo/      # Python + PyMongo driver
 ```
 
 ## License
