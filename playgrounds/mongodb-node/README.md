@@ -107,6 +107,8 @@ unverified certificate.
 | `TLS_INSECURE` | `true` | Accept the local self-signed certificate. |
 | `SERVER_SELECTION_TIMEOUT_MS` | `10000` | App server-selection timeout. |
 | `PORT` | `3000` | REST API port. |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Time window for rate limiting data routes. |
+| `RATE_LIMIT_MAX` | `100` | Maximum requests per client within the rate-limit window. |
 | `KEEP_DB` | `1` | Set to `0` to remove DocumentDB after tests. |
 
 ## Running the Suite Manually

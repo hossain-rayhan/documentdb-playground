@@ -1,6 +1,7 @@
 'use strict';
 
 const express = require('express');
+const { rateLimit } = require('express-rate-limit');
 const { ObjectId } = require('mongodb');
 
 const db = require('./db');
@@ -8,12 +9,30 @@ const db = require('./db');
 const app = express();
 app.use(express.json());
 
+const dataRouteLimiter = rateLimit({
+  windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60000),
+  limit: Number(process.env.RATE_LIMIT_MAX || 100),
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+});
+app.use(['/books', '/stats'], dataRouteLimiter);
+
 const PORT = Number(process.env.PORT || 3000);
 let database;
 let books;
 
 function parseObjectId(value) {
-  return ObjectId.isValid(value) ? new ObjectId(value) : null;
+  if (typeof value !== 'string' || !/^[0-9a-fA-F]{24}$/.test(value)) return null;
+  return ObjectId.createFromHexString(value);
+}
+
+function parseAuthor(value) {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return null;
+
+  const author = value.trim();
+  if (author.length === 0 || author.length > 100) return null;
+  return author;
 }
 
 function serialize(document) {
@@ -53,7 +72,11 @@ app.post('/books', async (req, res) => {
 
 app.get('/books', async (req, res) => {
   try {
-    const filter = req.query.author ? { author: req.query.author } : {};
+    const author = parseAuthor(req.query.author);
+    if (author === null) {
+      return res.status(400).json({ error: 'author must be a non-empty string up to 100 characters' });
+    }
+    const filter = author === undefined ? {} : { author };
     const documents = await books.find(filter).sort({ createdAt: -1 }).limit(100).toArray();
     res.json({ count: documents.length, books: documents.map(serialize) });
   } catch (error) {
