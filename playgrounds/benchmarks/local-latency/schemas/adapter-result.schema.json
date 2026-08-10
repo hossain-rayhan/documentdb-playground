@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://documentdb.io/schemas/benchmark-adapter-result-v1.json",
+  "title": "DocumentDB benchmark adapter result",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "adapter",
+    "benchmarkId",
+    "phase",
+    "workload",
+    "tracingEnabled",
+    "requestedQueryBytes",
+    "actualQueryBytes",
+    "warmupOperations",
+    "measuredOperations",
+    "successfulOperations",
+    "failedOperations",
+    "concurrency",
+    "measurementStartUs",
+    "measurementEndUs",
+    "elapsedSeconds",
+    "throughputOperationsPerSecond",
+    "latencyMs",
+    "runtime",
+    "telemetry",
+    "database"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "adapter": { "type": "string", "minLength": 1 },
+    "benchmarkId": { "type": "string", "minLength": 1 },
+    "phase": { "enum": ["baseline", "traced"] },
+    "workload": { "type": "string", "minLength": 1 },
+    "tracingEnabled": { "type": "boolean" },
+    "requestedQueryBytes": { "type": "integer", "minimum": 1 },
+    "actualQueryBytes": { "type": "integer", "minimum": 1 },
+    "warmupOperations": { "type": "integer", "minimum": 0 },
+    "measuredOperations": { "type": "integer", "minimum": 1 },
+    "successfulOperations": { "type": "integer", "minimum": 0 },
+    "failedOperations": { "type": "integer", "minimum": 0 },
+    "concurrency": { "type": "integer", "minimum": 1 },
+    "measurementStartUs": { "type": "integer", "minimum": 1 },
+    "measurementEndUs": { "type": "integer", "minimum": 1 },
+    "elapsedSeconds": { "type": "number", "exclusiveMinimum": 0 },
+    "throughputOperationsPerSecond": { "type": "number", "minimum": 0 },
+    "latencyMs": {
+      "type": "object",
+      "required": ["minimum", "mean", "p50", "p95", "p99", "maximum"],
+      "additionalProperties": { "type": "number", "minimum": 0 }
+    },
+    "runtime": { "type": "object" },
+    "telemetry": {
+      "type": "object",
+      "required": ["serviceName", "operationName"],
+      "properties": {
+        "serviceName": { "type": ["string", "null"] },
+        "operationName": { "type": "string" }
+      }
+    },
+    "database": { "type": "object" }
+  },
+  "additionalProperties": true
+}
