@@ -4,6 +4,7 @@ from analyze_jaeger import (
     build_markdown_summary,
     complete_trace_count,
     interval_union_duration,
+    is_descendant,
     percentile,
 )
 
@@ -82,6 +83,7 @@ class AnalyzeJaegerTest(unittest.TestCase):
                 },
                 {
                     "processID": "gateway",
+                    "spanID": "gateway-span",
                     "operationName": "gateway.request",
                     "references": [
                         {"refType": "CHILD_OF", "spanID": "client-span"}
@@ -90,6 +92,9 @@ class AnalyzeJaegerTest(unittest.TestCase):
                 {
                     "processID": "gateway",
                     "operationName": "postgres.execute",
+                    "references": [
+                        {"refType": "CHILD_OF", "spanID": "gateway-span"}
+                    ],
                 },
             ],
         }
@@ -107,6 +112,27 @@ class AnalyzeJaegerTest(unittest.TestCase):
             ),
             0,
         )
+
+    def test_is_descendant_restricts_to_selected_gateway_branch(self):
+        spans = [
+            {"spanID": "app"},
+            {"spanID": "gwA", "references": [{"refType": "CHILD_OF", "spanID": "app"}]},
+            {"spanID": "pgA", "references": [{"refType": "CHILD_OF", "spanID": "gwA"}]},
+            {"spanID": "gwB", "references": [{"refType": "CHILD_OF", "spanID": "app"}]},
+            {"spanID": "pgB", "references": [{"refType": "CHILD_OF", "spanID": "gwB"}]},
+        ]
+        spans_by_id = {span["spanID"]: span for span in spans}
+
+        self.assertTrue(is_descendant(spans_by_id["pgA"], "gwA", spans_by_id))
+        self.assertFalse(is_descendant(spans_by_id["pgB"], "gwA", spans_by_id))
+
+    def test_is_descendant_survives_reference_cycles(self):
+        cyclic = [
+            {"spanID": "x", "references": [{"refType": "CHILD_OF", "spanID": "y"}]},
+            {"spanID": "y", "references": [{"refType": "CHILD_OF", "spanID": "x"}]},
+        ]
+        cyclic_by_id = {span["spanID"]: span for span in cyclic}
+        self.assertFalse(is_descendant(cyclic_by_id["x"], "gwA", cyclic_by_id))
 
 
 if __name__ == "__main__":

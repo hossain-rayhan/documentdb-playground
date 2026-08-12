@@ -62,6 +62,31 @@ def child_of(span, parent_span_id):
     )
 
 
+def is_descendant(span, ancestor_span_id, spans_by_id, max_depth=64):
+    # Walk CHILD_OF links up to the selected gateway so sibling branches
+    # (retries, multi-command traces) are not mixed into the metrics.
+    current = span
+    seen = set()
+    for _ in range(max_depth):
+        parent_id = next(
+            (
+                reference.get("spanID")
+                for reference in current.get("references", [])
+                if reference.get("refType") == "CHILD_OF"
+            ),
+            None,
+        )
+        if parent_id is None or parent_id in seen:
+            return False
+        if parent_id == ancestor_span_id:
+            return True
+        seen.add(parent_id)
+        current = spans_by_id.get(parent_id)
+        if current is None:
+            return False
+    return False
+
+
 def complete_trace_count(traces, result, service_name, gateway_service):
     count = 0
     for trace in traces:
@@ -98,9 +123,11 @@ def complete_trace_count(traces, result, service_name, gateway_service):
         )
         if gateway is None:
             continue
+        spans_by_id = {span.get("spanID"): span for span in spans}
         if any(
             service(span) == gateway_service
             and span.get("operationName") == "postgres.execute"
+            and is_descendant(span, gateway.get("spanID"), spans_by_id)
             for span in spans
         ):
             count += 1
@@ -298,11 +325,13 @@ def main():
         if not child_of(gateway, application.get("spanID")):
             excluded["unexpected_parent_relationship"] += 1
             continue
+        spans_by_id = {span.get("spanID"): span for span in spans}
         postgres = [
             span
             for span in spans
             if service(span) == args.gateway_service
             and span.get("operationName") == "postgres.execute"
+            and is_descendant(span, gateway.get("spanID"), spans_by_id)
         ]
         if not postgres:
             excluded["missing_postgres_span"] += 1

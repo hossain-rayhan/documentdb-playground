@@ -5,6 +5,17 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 TELEMETRY_DIR="$REPO_ROOT/shared/telemetry"
+
+# Load shared telemetry settings so custom ports/credentials reach the endpoint
+# derivation, the adapter, and the analyzer; up.sh only sees them in its own process.
+ENV_FILE="${TELEMETRY_ENV_FILE:-$TELEMETRY_DIR/.env}"
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "$ENV_FILE"
+    set +a
+fi
+
 ADAPTER="${BENCHMARK_ADAPTER:-mongoose}"
 ADAPTER_SCRIPT="$SCRIPT_DIR/adapters/$ADAPTER.sh"
 BENCHMARK_ID="${BENCHMARK_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$ADAPTER-$$}"
