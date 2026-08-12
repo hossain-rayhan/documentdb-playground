@@ -10,6 +10,7 @@ DOCUMENTDB_CONTAINER="${DOCUMENTDB_CONTAINER:-documentdb-local}"
 DOCUMENTDB_IMAGE="${DOCUMENTDB_IMAGE:-ghcr.io/documentdb/documentdb/documentdb-local:latest}"
 DOCUMENTDB_HOST="${DOCUMENTDB_HOST:-localhost}"
 DOCUMENTDB_PORT="${DOCUMENTDB_PORT:-10260}"
+DOCUMENTDB_CONTAINER_PORT=10260
 # Note: the emulator rejects some reserved names (e.g. "documentdb"); use a
 # distinct admin username.
 DOCUMENTDB_USERNAME="${DOCUMENTDB_USERNAME:-docdbadmin}"
@@ -20,6 +21,10 @@ DOCUMENTDB_PASSWORD="${DOCUMENTDB_PASSWORD:-Documentdb!Local1}"
 # accept its self-signed cert, and use a direct connection.
 build_uri() {
     echo "mongodb://${DOCUMENTDB_USERNAME}:${DOCUMENTDB_PASSWORD}@${DOCUMENTDB_HOST}:${DOCUMENTDB_PORT}/?tls=true&tlsAllowInvalidCertificates=true&directConnection=true"
+}
+
+build_container_uri() {
+    echo "mongodb://${DOCUMENTDB_USERNAME}:${DOCUMENTDB_PASSWORD}@localhost:${DOCUMENTDB_CONTAINER_PORT}/?tls=true&tlsAllowInvalidCertificates=true&directConnection=true"
 }
 
 # Wait until a TCP port accepts connections.
@@ -64,11 +69,11 @@ require_docker() {
 }
 
 container_running() {
-    [ "$(docker inspect -f '{{.State.Running}}' "$DOCUMENTDB_CONTAINER" 2>/dev/null)" = "true" ]
+    [ "$(docker container inspect -f '{{.State.Running}}' "$DOCUMENTDB_CONTAINER" 2>/dev/null)" = "true" ]
 }
 
 container_exists() {
-    docker inspect "$DOCUMENTDB_CONTAINER" >/dev/null 2>&1
+    docker container inspect "$DOCUMENTDB_CONTAINER" >/dev/null 2>&1
 }
 
 ensure_documentdb() {
@@ -95,7 +100,7 @@ ensure_documentdb() {
 
 wait_for_documentdb() {
     local uri
-    uri="$(build_uri)"
+    uri="$(build_container_uri)"
     echo "Waiting for DocumentDB to accept connections ..."
 
     local i
