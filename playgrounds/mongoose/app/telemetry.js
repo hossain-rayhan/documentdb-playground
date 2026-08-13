@@ -90,7 +90,7 @@ function installMongooseTracePropagation(mongoose) {
   propagationInstalled = true;
 }
 
-async function traceDocumentDbOperation(operationName, namespace, operation) {
+async function traceDocumentDbOperation(operationName, namespace, operation, attributes = {}) {
   if (!tracingEnabled) {
     return operation();
   }
@@ -103,6 +103,7 @@ async function traceDocumentDbOperation(operationName, namespace, operation) {
         'db.system.name': 'documentdb',
         'db.operation.name': operationName,
         'db.namespace': namespace,
+        ...attributes,
       },
     },
     async (span) => {

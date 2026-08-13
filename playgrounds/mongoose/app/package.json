@@ -8,6 +8,7 @@
     "node": "^18.19.0 || >=20.6.0"
   },
   "scripts": {
+    "benchmark": "node benchmark.js",
     "start": "node server.js",
     "test:crud": "node mongoose-crud-test.js"
   },

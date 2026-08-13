@@ -93,3 +93,19 @@ are joined successfully.
 
 Other playgrounds can use the same stack by starting it here first and then
 running their normal application or test scripts.
+
+## Run a benchmark
+
+The [local latency benchmark](../../playgrounds/benchmarks/local-latency/)
+reuses this stack with `otel-collector-benchmark.yaml`, which omits the verbose
+debug exporter during measured runs. It owns experiment artifacts and invokes a
+driver adapter:
+
+```bash
+cd ../..
+BENCHMARK_ADAPTER=mongoose ./playgrounds/benchmarks/local-latency/benchmark.sh
+```
+
+The infrastructure is reusable by every driver playground. Connected tracing
+also requires a driver adapter that creates client spans and injects W3C trace
+context into each MongoDB command comment.

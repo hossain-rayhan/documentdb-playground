@@ -233,6 +233,16 @@ Read by [`app/db.js`](app/db.js), [`app/server.js`](app/server.js), and
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry default                         | app        | Collector endpoint used by the traced app.                                          |
 | `OTEL_SERVICE_NAME`           | SDK default                                   | app        | Application service name shown in Jaeger.                                           |
 
+The telemetry demo and benchmark use the official tracing-enabled image by
+default:
+
+```text
+ghcr.io/documentdb/documentdb/documentdb-local:trace-4fbbfcb8
+```
+
+This does not change the regular app and CRUD scripts, which continue to use
+the standard `latest` image unless `DOCUMENTDB_IMAGE` is set.
+
 ## Running the Test Suite Manually
 
 The scripts handle everything, but you can also run the suite directly against

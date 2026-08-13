@@ -13,6 +13,7 @@ __pycache__/
 # Runtime / logs
 *.log
 logs/
+playgrounds/benchmarks/*/results/
 
 # Environment / secrets
 .env
